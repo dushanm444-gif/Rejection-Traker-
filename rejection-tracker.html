@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rejection Tracker</title>
+<style>
+:root{--bg:#f3f5f9;--card:#fff;--ink:#1d2433;--mut:#6b7385;--pri:#1f5fd6;--line:#dfe3ec;--c1:#d9480f;--c2:#7048e8;--c3:#0b8a6a;--c4:#c2255c}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:var(--pri);color:#fff;padding:14px 16px;position:sticky;top:0;z-index:5}
+header h1{margin:0;font-size:18px}
+header small{opacity:.85}
+nav{display:flex;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:56px;z-index:4}
+nav button{flex:1;padding:12px;border:0;background:none;font-size:15px;font-weight:600;color:var(--mut);border-bottom:3px solid transparent;cursor:pointer}
+nav button.on{color:var(--pri);border-color:var(--pri)}
+main{max-width:1000px;margin:0 auto;padding:12px}
+.card{background:var(--card);border-radius:12px;padding:14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.07)}
+h2{font-size:16px;margin:0 0 10px}
+label{display:block;font-size:12px;font-weight:600;color:var(--mut);margin-bottom:4px;text-transform:uppercase;letter-spacing:.03em}
+input,select{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:16px;background:#fff;color:var(--ink)}
+.grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.lines{display:flex;gap:8px}
+.lines button{flex:1;padding:12px 0;border:2px solid var(--line);background:#fff;border-radius:8px;font-size:16px;font-weight:700;cursor:pointer;color:var(--ink)}
+.lines button.on{background:var(--pri);border-color:var(--pri);color:#fff}
+.dmg{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-top:6px}
+.dmg div{border-left:5px solid;padding-left:8px}
+.btn{padding:12px 18px;border:0;border-radius:8px;background:var(--pri);color:#fff;font-size:16px;font-weight:700;cursor:pointer}
+.btn.sec{background:#e8ecf4;color:var(--ink)}
+.btn.sm{padding:6px 10px;font-size:13px}
+.btn.red{background:#e03131}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left}
+th{font-size:12px;color:var(--mut);text-transform:uppercase}
+td.n,th.n{text-align:right}
+.scroll{overflow-x:auto}
+.tot{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}
+.tot div{background:var(--bg);border-radius:10px;padding:10px;border-top:4px solid var(--pri)}
+.tot b{display:block;font-size:24px}
+.tot span{font-size:11px;color:var(--mut);font-weight:600}
+.msg{padding:10px;border-radius:8px;background:#d3f9d8;color:#1b6b2f;margin-top:10px;display:none;font-weight:600}
+.msg.err{background:#ffe3e3;color:#a61e1e}
+.tag{display:inline-block;padding:2px 8px;border-radius:10px;color:#fff;font-size:11px;font-weight:700;white-space:nowrap}
+.empty{color:var(--mut);text-align:center;padding:16px}
+.hide{display:none}
+@media print{header,nav,.noprint{display:none!important}}
+</style>
+</head>
+<body>
+<header><h1>Rejection Tracker</h1><small>Daily style-wise rejection · Lines 7, 8, 9, 10</small></header>
+<nav>
+  <button id="tabE" class="on" onclick="showTab('E')">Data Entry</button>
+  <button id="tabS" onclick="showTab('S')">Summary</button>
+</nav>
+<main>
+
+<!-- ENTRY -->
+<section id="viewE">
+  <div class="card">
+    <h2>New Rejection Entry</h2>
+    <div class="grid">
+      <div><label>Date</label><input type="date" id="eDate"></div>
+      <div><label>Style</label><input id="eStyle" list="styleList" placeholder="Style no / name" autocomplete="off"><datalist id="styleList"></datalist></div>
+    </div>
+    <div style="margin-top:10px"><label>Line</label>
+      <div class="lines" id="eLines"></div>
+    </div>
+    <div style="margin-top:12px"><label>Damage Quantities (pcs)</label>
+      <div class="dmg" id="eDmg"></div>
+    </div>
+    <div style="margin-top:10px"><label>Remarks (optional)</label><input id="eRem" placeholder="Remarks"></div>
+    <div class="row">
+      <button class="btn" onclick="saveEntry()">Save Entry</button>
+      <button class="btn sec" onclick="clearForm()">Clear</button>
+    </div>
+    <div class="msg" id="eMsg"></div>
+  </div>
+
+  <div class="card">
+    <h2>Entries for <span id="eDateLbl"></span></h2>
+    <div class="scroll" id="eList"></div>
+  </div>
+</section>
+
+<!-- SUMMARY -->
+<section id="viewS" class="hide">
+  <div class="card noprint">
+    <h2>Filters</h2>
+    <div class="grid">
+      <div><label>Year</label><select id="fYear" onchange="renderSummary()"></select></div>
+      <div><label>Month</label><select id="fMonth" onchange="renderSummary()"></select></div>
+      <div><label>Date</label><input type="date" id="fDate" onchange="renderSummary()"></div>
+      <div><label>Line</label><select id="fLine" onchange="renderSummary()"></select></div>
+      <div><label>Style</label><select id="fStyle" onchange="renderSummary()"></select></div>
+      <div><label>Damage Type</label><select id="fType" onchange="renderSummary()"></select></div>
+    </div>
+    <div class="row">
+      <button class="btn sec sm" onclick="resetFilters()">Reset Filters</button>
+      <button class="btn sec sm" onclick="exportCSV()">Export CSV</button>
+      <button class="btn sec sm" onclick="window.print()">Print</button>
+    </div>
+    <div style="font-size:12px;color:var(--mut);margin-top:8px">Date eka select karoth Year / Month ignore wenawa.</div>
+  </div>
+
+  <div class="card"><h2>Totals</h2><div class="tot" id="sTot"></div></div>
+  <div class="card"><h2>Line × Damage Type</h2><div class="scroll" id="sMatrix"></div></div>
+  <div class="card"><h2>Style wise</h2><div class="scroll" id="sStyle"></div></div>
+  <div class="card"><h2>Date wise</h2><div class="scroll" id="sDay"></div></div>
+  <div class="card"><h2>All Records</h2><div class="scroll" id="sList"></div></div>
+
+  <div class="card noprint">
+    <h2>Backup</h2>
+    <div style="font-size:13px;color:var(--mut);margin-bottom:8px">Data save wenne me browser eke thamai. Browser data clear kaloth yanna puluwan nisa, kalin kalata backup ekak ganna.</div>
+    <div class="row" style="margin-top:0">
+      <button class="btn sec sm" onclick="backup()">Download Backup</button>
+      <button class="btn sec sm" onclick="document.getElementById('restoreFile').click()">Restore Backup</button>
+      <input type="file" id="restoreFile" accept=".json" class="hide" onchange="restore(this)">
+    </div>
+  </div>
+</section>
+
+</main>
+<script>
+var TYPES=["FABRIC DAMAGE","CUT DAMAGE","MEASUREMENT OUT","PANEL HIGHLOW"];
+var COLORS=["#d9480f","#7048e8","#0b8a6a","#c2255c"];
+var LINES=[7,8,9,10];
+var KEY="rejectionTracker_v1";
+var MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
+var selLine=null;
+var DB=[];
+
+function load(){try{DB=JSON.parse(localStorage.getItem(KEY)||"[]");if(!Array.isArray(DB))DB=[];}catch(e){DB=[];}}
+function persist(){try{localStorage.setItem(KEY,JSON.stringify(DB));return true;}catch(e){alert("Storage save failed: "+e.message);return false;}}
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
+function todayStr(){var d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+function $(id){return document.getElementById(id);}
+function norm(s){return s.trim().replace(/\s+/g," ").toUpperCase();}
+function tIdx(t){return TYPES.indexOf(t);}
+function tag(t){return '<span class="tag" style="background:'+COLORS[tIdx(t)]+'">'+t+'</span>';}
+function newId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+
+function showTab(t){
+  $("viewE").classList.toggle("hide",t!=="E");
+  $("viewS").classList.toggle("hide",t!=="S");
+  $("tabE").classList.toggle("on",t==="E");
+  $("tabS").classList.toggle("on",t==="S");
+  if(t==="S"){buildFilters();renderSummary();}else{renderEntryList();refreshStyles();}
+}
+
+/* ---------- ENTRY ---------- */
+function buildEntryUI(){
+  $("eDate").value=todayStr();
+  $("eLines").innerHTML=LINES.map(function(l){return '<button type="button" data-l="'+l+'" onclick="pickLine('+l+')">Line '+l+'</button>';}).join("");
+  $("eDmg").innerHTML=TYPES.map(function(t,i){
+    return '<div style="border-color:'+COLORS[i]+'"><label>'+t+'</label><input type="number" min="0" inputmode="numeric" id="q'+i+'" placeholder="0"></div>';
+  }).join("");
+  $("eDate").addEventListener("change",renderEntryList);
+  refreshStyles();
+}
+function pickLine(l){
+  selLine=l;
+  var bs=$("eLines").children;
+  for(var i=0;i<bs.length;i++)bs[i].classList.toggle("on",+bs[i].dataset.l===l);
+}
+function refreshStyles(){
+  var set={};DB.forEach(function(r){set[r.style]=1;});
+  $("styleList").innerHTML=Object.keys(set).sort().map(function(s){return '<option value="'+esc(s)+'">';}).join("");
+}
+function flash(msg,err){
+  var m=$("eMsg");m.textContent=msg;m.className="msg"+(err?" err":"");m.style.display="block";
+  clearTimeout(flash.t);flash.t=setTimeout(function(){m.style.display="none";},3000);
+}
+function clearForm(){
+  $("eStyle").value="";$("eRem").value="";
+  TYPES.forEach(function(t,i){$("q"+i).value="";});
+}
+function saveEntry(){
+  var date=$("eDate").value,style=norm($("eStyle").value),rem=$("eRem").value.trim();
+  if(!date){flash("Date eka select karanna.",1);return;}
+  if(!selLine){flash("Line eka select karanna.",1);return;}
+  if(!style){flash("Style eka enter karanna.",1);return;}
+  var added=0;
+  TYPES.forEach(function(t,i){
+    var q=parseInt($("q"+i).value,10);
+    if(q>0){DB.push({id:newId(),date:date,line:selLine,style:style,type:t,qty:q,remarks:rem});added++;}
+  });
+  if(!added){flash("Damage quantity ekak hari enter karanna.",1);return;}
+  if(persist()){
+    flash("Saved ✔ ("+added+" damage type"+(added>1?"s":"")+")");
+    TYPES.forEach(function(t,i){$("q"+i).value="";});
+    $("eRem").value="";
+    refreshStyles();renderEntryList();
+  }
+}
+function renderEntryList(){
+  var d=$("eDate").value;
+  $("eDateLbl").textContent=d||"";
+  var rows=DB.filter(function(r){return r.date===d;}).sort(function(a,b){return a.line-b.line||a.style.localeCompare(b.style);});
+  if(!rows.length){$("eList").innerHTML='<div class="empty">Me dawase entries naha.</div>';return;}
+  var tot=rows.reduce(function(s,r){return s+r.qty;},0);
+  $("eList").innerHTML='<table><tr><th>Line</th><th>Style</th><th>Damage</th><th class="n">Qty</th><th></th></tr>'+
+    rows.map(function(r){return '<tr><td>'+r.line+'</td><td>'+esc(r.style)+'</td><td>'+tag(r.type)+'</td><td class="n"><b>'+r.qty+'</b></td><td class="n"><button class="btn sm sec" onclick="editRec(\''+r.id+'\')">Edit</button> <button class="btn sm red" onclick="delRec(\''+r.id+'\')">Del</button></td></tr>';}).join("")+
+    '<tr><td colspan="3"><b>Total</b></td><td class="n"><b>'+tot+'</b></td><td></td></tr></table>';
+}
+function editRec(id){
+  var r=DB.find(function(x){return x.id===id;});if(!r)return;
+  var v=prompt("New quantity for "+r.style+" – "+r.type+":",r.qty);
+  if(v===null)return;
+  var q=parseInt(v,10);
+  if(!(q>0)){alert("Valid quantity ekak danna.");return;}
+  r.qty=q;persist();renderEntryList();if(!$("viewS").classList.contains("hide"))renderSummary();
+}
+function delRec(id){
+  if(!confirm("Me record eka delete karanna ida?"))return;
+  DB=DB.filter(function(x){return x.id!==id;});
+  persist();refreshStyles();renderEntryList();if(!$("viewS").classList.contains("hide")){buildFilters();renderSummary();}
+}
+
+/* ---------- SUMMARY ---------- */
+function opt(v,l,sel){return '<option value="'+esc(v)+'"'+(sel?" selected":"")+'>'+esc(l)+'</option>';}
+function buildFilters(){
+  var cur={y:$("fYear").value,m:$("fMonth").value,l:$("fLine").value,s:$("fStyle").value,t:$("fType").value};
+  var years={},styles={};
+  DB.forEach(function(r){years[r.date.slice(0,4)]=1;styles[r.style]=1;});
+  $("fYear").innerHTML=opt("","All Years")+Object.keys(years).sort().reverse().map(function(y){return opt(y,y,cur.y===y);}).join("");
+  $("fMonth").innerHTML=opt("","All Months")+MONTHS.map(function(m,i){var v=String(i+1).padStart(2,"0");return opt(v,m,cur.m===v);}).join("");
+  $("fLine").innerHTML=opt("","All Lines")+LINES.map(function(l){return opt(String(l),"Line "+l,cur.l===String(l));}).join("");
+  $("fStyle").innerHTML=opt("","All Styles")+Object.keys(styles).sort().map(function(s){return opt(s,s,cur.s===s);}).join("");
+  $("fType").innerHTML=opt("","All Damage Types")+TYPES.map(function(t){return opt(t,t,cur.t===t);}).join("");
+  if(!$("fYear").dataset.init){ // default: current year & month
+    $("fYear").dataset.init=1;
+    var t=todayStr();
+    if(years[t.slice(0,4)])$("fYear").value=t.slice(0,4);
+    $("fMonth").value=t.slice(5,7);
+  }
+}
+function resetFilters(){
+  $("fYear").value="";$("fMonth").value="";$("fDate").value="";$("fLine").value="";$("fStyle").value="";$("fType").value="";
+  renderSummary();
+}
+function filtered(){
+  var y=$("fYear").value,m=$("fMonth").value,d=$("fDate").value,l=$("fLine").value,s=$("fStyle").value,t=$("fType").value;
+  $("fYear").disabled=$("fMonth").disabled=!!d;
+  return DB.filter(function(r){
+    if(d){if(r.date!==d)return false;}
+    else{if(y&&r.date.slice(0,4)!==y)return false;if(m&&r.date.slice(5,7)!==m)return false;}
+    if(l&&String(r.line)!==l)return false;
+    if(s&&r.style!==s)return false;
+    if(t&&r.type!==t)return false;
+    return true;
+  });
+}
+function sum(arr){return arr.reduce(function(s,r){return s+r.qty;},0);}
+function renderSummary(){
+  var rows=filtered();
+  if(!rows.length){
+    ["sTot","sMatrix","sStyle","sDay","sList"].forEach(function(id){$(id).innerHTML='<div class="empty">Data naha.</div>';});
+    return;
+  }
+  // totals
+  var h='<div><b>'+sum(rows)+'</b><span>TOTAL REJECTS</span></div>';
+  TYPES.forEach(function(t,i){
+    h+='<div style="border-color:'+COLORS[i]+'"><b>'+sum(rows.filter(function(r){return r.type===t;}))+'</b><span>'+t+'</span></div>';
+  });
+  $("sTot").innerHTML=h;
+  // matrix
+  var m='<table><tr><th>Line</th>'+TYPES.map(function(t){return '<th class="n">'+t.replace(" ","<br>")+'</th>';}).join("")+'<th class="n">Total</th></tr>';
+  LINES.forEach(function(l){
+    var lr=rows.filter(function(r){return r.line===l;});
+    m+='<tr><td><b>Line '+l+'</b></td>'+TYPES.map(function(t){return '<td class="n">'+(sum(lr.filter(function(r){return r.type===t;}))||"–")+'</td>';}).join("")+'<td class="n"><b>'+sum(lr)+'</b></td></tr>';
+  });
+  m+='<tr><td><b>Total</b></td>'+TYPES.map(function(t){return '<td class="n"><b>'+sum(rows.filter(function(r){return r.type===t;}))+'</b></td>';}).join("")+'<td class="n"><b>'+sum(rows)+'</b></td></tr></table>';
+  $("sMatrix").innerHTML=m;
+  // style wise
+  var st={};rows.forEach(function(r){(st[r.style]=st[r.style]||[]).push(r);});
+  var sk=Object.keys(st).sort(function(a,b){return sum(st[b])-sum(st[a]);});
+  $("sStyle").innerHTML='<table><tr><th>Style</th>'+TYPES.map(function(t){return '<th class="n">'+t.replace(" ","<br>")+'</th>';}).join("")+'<th class="n">Total</th></tr>'+
+    sk.map(function(s){return '<tr><td>'+esc(s)+'</td>'+TYPES.map(function(t){return '<td class="n">'+(sum(st[s].filter(function(r){return r.type===t;}))||"–")+'</td>';}).join("")+'<td class="n"><b>'+sum(st[s])+'</b></td></tr>';}).join("")+'</table>';
+  // date wise
+  var dy={};rows.forEach(function(r){(dy[r.date]=dy[r.date]||[]).push(r);});
+  var dk=Object.keys(dy).sort().reverse();
+  $("sDay").innerHTML='<table><tr><th>Date</th>'+TYPES.map(function(t){return '<th class="n">'+t.replace(" ","<br>")+'</th>';}).join("")+'<th class="n">Total</th></tr>'+
+    dk.map(function(d){return '<tr><td>'+d+'</td>'+TYPES.map(function(t){return '<td class="n">'+(sum(dy[d].filter(function(r){return r.type===t;}))||"–")+'</td>';}).join("")+'<td class="n"><b>'+sum(dy[d])+'</b></td></tr>';}).join("")+'</table>';
+  // list
+  var sorted=rows.slice().sort(function(a,b){return b.date.localeCompare(a.date)||a.line-b.line;});
+  $("sList").innerHTML='<table><tr><th>Date</th><th>Line</th><th>Style</th><th>Damage</th><th class="n">Qty</th><th>Remarks</th><th class="noprint"></th></tr>'+
+    sorted.map(function(r){return '<tr><td>'+r.date+'</td><td>'+r.line+'</td><td>'+esc(r.style)+'</td><td>'+tag(r.type)+'</td><td class="n"><b>'+r.qty+'</b></td><td>'+esc(r.remarks||"")+'</td><td class="noprint"><button class="btn sm sec" onclick="editRec(\''+r.id+'\')">Edit</button> <button class="btn sm red" onclick="delRec(\''+r.id+'\')">Del</button></td></tr>';}).join("")+'</table>';
+}
+
+/* ---------- EXPORT / BACKUP ---------- */
+function download(name,text,mime){
+  var a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([text],{type:mime}));
+  a.download=name;document.body.appendChild(a);a.click();
+  setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},500);
+}
+function exportCSV(){
+  var rows=filtered().sort(function(a,b){return a.date.localeCompare(b.date)||a.line-b.line;});
+  if(!rows.length){alert("Export karanna data naha.");return;}
+  var csv="Date,Line,Style,Damage Type,Qty,Remarks\n"+rows.map(function(r){
+    return [r.date,r.line,'"'+r.style.replace(/"/g,'""')+'"',r.type,r.qty,'"'+(r.remarks||"").replace(/"/g,'""')+'"'].join(",");
+  }).join("\n");
+  download("rejections_"+todayStr()+".csv",csv,"text/csv");
+}
+function backup(){download("rejection_backup_"+todayStr()+".json",JSON.stringify(DB),"application/json");}
+function restore(inp){
+  var f=inp.files[0];if(!f)return;
+  var rd=new FileReader();
+  rd.onload=function(){
+    try{
+      var data=JSON.parse(rd.result);
+      if(!Array.isArray(data))throw new Error("Invalid file");
+      if(!confirm("Dan thiyena data wenuwata me backup ekama replace karanna ida? (Records "+data.length+")"))return;
+      DB=data;persist();refreshStyles();buildFilters();renderSummary();renderEntryList();alert("Restore wuna ✔");
+    }catch(e){alert("Restore fail: "+e.message);}
+    inp.value="";
+  };
+  rd.readAsText(f);
+}
+
+/* ---------- INIT ---------- */
+load();buildEntryUI();renderEntryList();
+</script>
+</body>
+</html>
